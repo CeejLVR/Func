@@ -179,6 +179,7 @@ end
 -- Use case: Highlight objects or players visually in a game.
 local espList = {}
 
+
 function Utils.DrawESP(part, color)
     local box = Instance.new("BoxHandleAdornment")
     box.Size = part.Size
@@ -188,34 +189,47 @@ function Utils.DrawESP(part, color)
     box.Color3 = color or Color3.new(1, 0, 0)
     box.Transparency = 0.5
     box.Parent = part
-    table.insert(espList, box)
     return box
 end
 
+function Utils.setupBox(player)
+    local function addESP(char)
+        if not char then return end
+        local rootPart = char:WaitForChild("HumanoidRootPart", 5)
+        if not rootPart then return end
 
--- Clears all ESP adornments drawn by DrawESP.
--- Use case: Remove all highlights when no longer needed.
-function Utils.ClearESP()
-    for _, adorn in ipairs(espList) do
-        if adorn and adorn.Parent then
-            adorn:Destroy()
-        end
+        local humanoid = char:FindFirstChild("Humanoid")
+        if not humanoid then return end
+
+        local color = player.Team and player.Team.TeamColor.Color or Color3.new(1, 0, 0)
+        local box = Utils.DrawESP(rootPart, color)
+        
+        -- Adjust box size to fit entire character
+        local size = char:GetExtentsSize()
+        box.Size = size + Vector3.new(0.05, 0.05, 0.05) -- Add padding
+
+        espList[player] = box
     end
-    table.clear(espList)
+
+    -- Handle respawns
+    player.CharacterAdded:Connect(addESP)
+    if player.Character then
+        addESP(player.Character)
+    end
 end
 
-
---Simulates a left mouse click at screen coordinates (x, y).
---Useful for automating UI or game interactions.
-function Utils.DoMouseClick(x, y)
-    local vim = game:GetService("VirtualInputManager")
-    if typeof(x) ~= "number" or typeof(y) ~= "number" then
-        warn("DoMouseClick expects two numbers")
-        return
+function Utils.removeBox(player)
+    if espList[player] then
+        espList[player]:Destroy()
+        espList[player] = nil
     end
-    vim:SendMouseButtonEvent(x, y, 0, true, game, 1)
-    task.wait()
-    vim:SendMouseButtonEvent(x, y, 0, false, game, 1)
+end
+
+function Utils.ClearESP()
+    for player, box in pairs(espList) do
+        box:Destroy()
+    end
+    espList = {}
 end
 
 

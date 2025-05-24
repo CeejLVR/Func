@@ -244,6 +244,9 @@ function Utils.setupBox(player)
     end
 end
 
+
+
+
 function Utils.removeBox(player)
     if espList[player] then
         -- Cleanup box and connections
@@ -261,7 +264,6 @@ function Utils.removeBox(player)
 end
 
 
-
 function Utils.ClearESP()
     for player, box in pairs(espList) do
         box:Destroy()
@@ -270,7 +272,16 @@ function Utils.ClearESP()
 end
 
 
+function Utils.reloadESP()
+    Utils.ClearESP() -- Clear all existing boxes
 
+    -- Re-add ESP for all enemies
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and (not LocalPlayer.Team or player.Team ~= LocalPlayer.Team) then
+            Utils.setupBox(player)
+        end
+    end
+end
 
 --Calculates the distance between two Vector2 or Vector3 values.
 --Useful for targeting or proximity checks.

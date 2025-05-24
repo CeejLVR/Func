@@ -1,5 +1,6 @@
 local Utils = {}
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
@@ -193,6 +194,9 @@ function Utils.DrawESP(part, color)
 end
 
 function Utils.setupBox(player)
+    -- Cleanup existing ESP for this player first
+    Utils.removeBox(player)
+
     local function addESP(char)
         if not char then return end
         local rootPart = char:WaitForChild("HumanoidRootPart", 5)
@@ -201,18 +205,40 @@ function Utils.setupBox(player)
         local humanoid = char:FindFirstChild("Humanoid")
         if not humanoid then return end
 
+        -- Remove any existing box for this player
+        Utils.removeBox(player)
+
+        -- Create new box
         local color = player.Team and player.Team.TeamColor.Color or Color3.new(1, 0, 0)
         local box = Utils.DrawESP(rootPart, color)
-        
-        -- Adjust box size to fit entire character
         local size = char:GetExtentsSize()
-        box.Size = size + Vector3.new(0.05, 0.05, 0.05) -- Add padding
+        box.Size = size + Vector3.new(0.05, 0.05, 0.05)
 
-        espList[player] = box
+        -- Track box and connection
+        espList[player] = {
+            box = box,
+            teamConn = nil, -- Will be set later
+            charConn = nil -- Track CharacterAdded connection
+        }
+
+        -- Listen for team changes (only once per player)
+        espList[player].teamConn = player:GetPropertyChangedSignal("Team"):Connect(function()
+            -- Compare to LocalPlayer's team, not player's own team
+            if player.Team == LocalPlayer.Team then
+                Utils.removeBox(player) -- Remove if same team
+            else
+                -- Refresh ESP with new color
+                Utils.removeBox(player)
+                Utils.setupBox(player)
+            end
+        end)
     end
 
-    -- Handle respawns
-    player.CharacterAdded:Connect(addESP)
+    -- Track CharacterAdded connection
+    espList[player] = espList[player] or {}
+    espList[player].charConn = player.CharacterAdded:Connect(addESP)
+
+    -- Initial setup
     if player.Character then
         addESP(player.Character)
     end
@@ -220,10 +246,21 @@ end
 
 function Utils.removeBox(player)
     if espList[player] then
-        espList[player]:Destroy()
+        -- Cleanup box and connections
+        if espList[player].box then
+            espList[player].box:Destroy()
+        end
+        if espList[player].teamConn then
+            espList[player].teamConn:Disconnect()
+        end
+        if espList[player].charConn then
+            espList[player].charConn:Disconnect()
+        end
         espList[player] = nil
     end
 end
+
+
 
 function Utils.ClearESP()
     for player, box in pairs(espList) do
@@ -231,6 +268,8 @@ function Utils.ClearESP()
     end
     espList = {}
 end
+
+
 
 
 --Calculates the distance between two Vector2 or Vector3 values.

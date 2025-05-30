@@ -13,9 +13,18 @@ setmetatable(services, {
     end,
 })
 
-
 --local Utils = require(game.ReplicatedStorage.Utils)
 --put in any script that uses this
+
+
+
+function Utils.EnsureCharacterLoaded(player)
+    if player and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid")  then
+        return true
+    else
+        return false
+    end
+end
 
 
 -- Safely calls a function and logs errors if any occur.
@@ -29,7 +38,7 @@ end
 
 -- Safely sets a property on an instance if it exists and is writable.
 -- Use case: Avoids errors when trying to set properties on nil or locked instances.
-function Utils.safeSetProperty(instance, property, value)
+function Utils.SafeSetProperty(instance, property, value)
     if instance and instance[property] ~= nil then
         pcall(function()
             instance[property] = value
@@ -40,7 +49,7 @@ end
 
 -- Checks if an object is a descendant of a given ancestor.
 -- Use case: Validates hierarchy relationship, useful for security checks or GUI parenting.
-function Utils.isDescendantOf(object, ancestor)
+function Utils.IsDescendantOf(object, ancestor)
     while object do
         if object == ancestor then return true end
         object = object.Parent
@@ -135,7 +144,7 @@ end
 
 -- Returns a debounced version of a callback, preventing rapid repeated calls.
 -- Use case: Useful for button presses or repeated events to avoid spamming.
-function Utils.debounce(callback, delay)
+function Utils.Debounce(callback, delay)
     local isDebounced = false
     return function(...)
         if isDebounced then return end
@@ -175,113 +184,6 @@ function Utils.SafeLoop(interval, shouldBreak, fn)
     end)
 end
 
-
--- Draws a basic ESP (box) on a part for visualization purposes.
--- Use case: Highlight objects or players visually in a game.
-local espList = {}
-
-
-function Utils.DrawESP(part, color)
-    local box = Instance.new("BoxHandleAdornment")
-    box.Size = part.Size
-    box.Adornee = part
-    box.AlwaysOnTop = true
-    box.ZIndex = 10
-    box.Color3 = color or Color3.new(1, 0, 0)
-    box.Transparency = 0.5
-    box.Parent = part
-    return box
-end
-
-function Utils.setupBox(player)
-    -- Cleanup existing ESP for this player first
-    Utils.removeBox(player)
-
-    local function addESP(char)
-        if not char then return end
-        local rootPart = char:WaitForChild("HumanoidRootPart", 5)
-        if not rootPart then return end
-
-        local humanoid = char:FindFirstChild("Humanoid")
-        if not humanoid then return end
-
-        -- Remove any existing box for this player
-        Utils.removeBox(player)
-
-        -- Create new box
-        local color = player.Team and player.Team.TeamColor.Color or Color3.new(1, 0, 0)
-        local box = Utils.DrawESP(rootPart, color)
-        local size = char:GetExtentsSize()
-        box.Size = size + Vector3.new(0.05, 0.05, 0.05)
-
-        -- Track box and connection
-        espList[player] = {
-            box = box,
-            teamConn = nil, -- Will be set later
-            charConn = nil -- Track CharacterAdded connection
-        }
-
-        -- Listen for team changes (only once per player)
-        espList[player].teamConn = player:GetPropertyChangedSignal("Team"):Connect(function()
-            -- Compare to LocalPlayer's team, not player's own team
-            if player.Team == LocalPlayer.Team then
-                Utils.removeBox(player) -- Remove if same team
-            else
-                -- Refresh ESP with new color
-                Utils.removeBox(player)
-                Utils.setupBox(player)
-            end
-        end)
-    end
-
-    -- Track CharacterAdded connection
-    espList[player] = espList[player] or {}
-    espList[player].charConn = player.CharacterAdded:Connect(addESP)
-
-    -- Initial setup
-    if player.Character then
-        addESP(player.Character)
-    end
-end
-
-
-
-
-function Utils.removeBox(player)
-    if espList[player] then
-        -- Cleanup box and connections
-        if espList[player].box then
-            espList[player].box:Destroy()
-        end
-        if espList[player].teamConn then
-            espList[player].teamConn:Disconnect()
-        end
-        if espList[player].charConn then
-            espList[player].charConn:Disconnect()
-        end
-        espList[player] = nil
-    end
-end
-
-
-function Utils.ClearESP()
-    for player, box in pairs(espList) do
-        box:Destroy()
-    end
-    espList = {}
-end
-
-
-function Utils.reloadESP()
-    Utils.ClearESP() -- Clear all existing boxes
-
-    -- Re-add ESP for all enemies
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and (not LocalPlayer.Team or player.Team ~= LocalPlayer.Team) then
-            Utils.setupBox(player)
-        end
-    end
-end
 
 --Calculates the distance between two Vector2 or Vector3 values.
 --Useful for targeting or proximity checks.
